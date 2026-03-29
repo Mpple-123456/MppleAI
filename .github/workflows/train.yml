@@ -1,6 +1,9 @@
 name: Train RNN Chatbot
 
 on:
+  schedule:
+    # 每周一凌晨 2 点（UTC 时间）自动运行
+    - cron: '0 2 * * 1'
   workflow_dispatch:
     inputs:
       epochs:
