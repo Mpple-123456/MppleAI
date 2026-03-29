@@ -2,8 +2,51 @@
 GitHub Actions 自动训练脚本
 """
 
+"""
+GitHub Actions 自动训练脚本 - 自动下载数据
+"""
+
 import os
 import sys
+import urllib.request
+import zipfile
+
+def download_dataset():
+    """自动下载 Cornell Movie Dialogs 数据集"""
+    data_dir = 'data'
+    
+    if os.path.exists(os.path.join(data_dir, 'movie_lines.txt')):
+        print("数据集已存在，跳过下载")
+        return True
+    
+    print("正在下载数据集...")
+    url = "http://www.cs.cornell.edu/~cristian/data/cornell_movie_dialogs_corpus.zip"
+    zip_path = "cornell_movie_dialogs_corpus.zip"
+    
+    try:
+        # 下载文件
+        urllib.request.urlretrieve(url, zip_path)
+        print("下载完成，正在解压...")
+        
+        # 解压
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(".")
+        
+        # 移动文件
+        os.makedirs(data_dir, exist_ok=True)
+        os.system(f"mv cornell_movie_dialogs_corpus/movie_lines.txt {data_dir}/")
+        os.system(f"mv cornell_movie_dialogs_corpus/movie_conversations.txt {data_dir}/")
+        
+        # 清理
+        os.remove(zip_path)
+        os.system("rm -rf cornell_movie_dialogs_corpus")
+        
+        print("数据集准备完成")
+        return True
+        
+    except Exception as e:
+        print(f"下载失败: {e}")
+        return False
 import time
 import argparse
 import pickle
@@ -14,6 +57,10 @@ from collections import Counter
 from main import SimpleRNN, clean_text, build_vocab, encode_sentence, DataLoader, train_model
 
 def main():
+    # 先下载数据集
+    if not download_dataset():
+        print("无法下载数据集，训练中止")
+        sys.exit(1)
     parser = argparse.ArgumentParser()
     parser.add_argument('--epochs', type=int, default=100, help='训练轮数')
     parser.add_argument('--batch_size', type=int, default=32, help='批次大小')
