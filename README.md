@@ -1,2 +1,2 @@
 # MppleAI
-Mpple自研AI
+#(!)拿到后请解压movie_lines.zip
