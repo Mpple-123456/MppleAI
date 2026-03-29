@@ -1,0 +1,6 @@
+@echo off
+echo Activating conda environment...
+call conda activate aichat
+echo Running chatbot...
+python main.py
+pause
