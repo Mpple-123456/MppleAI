@@ -1,0 +1,37 @@
+name: Model Version Management
+
+on:
+  workflow_run:
+    workflows: ["Train RNN Chatbot"]
+    types:
+      - completed
+
+jobs:
+  tag-model:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    
+    steps:
+    - name: Download model artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: trained-model
+        path: ./model
+    
+    - name: Get model info
+      id: model_info
+      run: |
+        echo "model_size=$(ls -lh ./model/rnn_model.pkl | awk '{print $5}')" >> $GITHUB_OUTPUT
+        echo "model_date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+    
+    - name: Create version tag
+      run: |
+        git tag model-v${{ github.run_number }}
+        git push origin model-v${{ github.run_number }}
+    
+    - name: Update latest model symlink
+      uses: actions/upload-artifact@v4
+      with:
+        name: latest-model
+        path: ./model/rnn_model.pkl
+        retention-days: 90
