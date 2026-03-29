@@ -1,0 +1,103 @@
+name: Train RNN Chatbot
+
+on:
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      epochs:
+        description: '训练轮数'
+        required: false
+        default: '100'
+        type: string
+      batch_size:
+        description: '批次大小'
+        required: false
+        default: '32'
+        type: string
+      max_pairs:
+        description: '训练数据量（对话对数量）'
+        required: false
+        default: '10000'
+        type: string
+  
+  # 定时训练（每周一凌晨2点）
+  schedule:
+    - cron: '0 2 * * 1'
+  
+  # 代码推送时训练（可选）
+  # push:
+  #   branches: [ main ]
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    
+    # 使用 GitHub 提供的免费 GPU 环境
+    # 注意：免费版 GPU 有限，可能需要排队
+    # 或者使用 CPU 训练（较慢）
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install numpy
+        # 使用 CPU 版本（GitHub Actions 免费版没有 GPU）
+        # 如果有 GPU 环境，可以安装 cupy
+        pip install numpy
+    
+    - name: Download Cornell Movie Dialogs
+      run: |
+        mkdir -p data
+        curl -L -o cornell_movie_dialogs_corpus.zip http://www.cs.cornell.edu/~cristian/data/cornell_movie_dialogs_corpus.zip
+        unzip -q cornell_movie_dialogs_corpus.zip
+        cp cornell_movie_dialogs_corpus/movie_lines.txt data/
+        cp cornell_movie_dialogs_corpus/movie_conversations.txt data/
+        rm -rf cornell_movie_dialogs_corpus cornell_movie_dialogs_corpus.zip
+        echo "Dataset downloaded"
+    
+    - name: Train model
+      run: |
+        python train_github.py --epochs ${{ github.event.inputs.epochs || 100 }} --batch_size ${{ github.event.inputs.batch_size || 32 }} --max_pairs ${{ github.event.inputs.max_pairs || 10000 }}
+    
+    - name: Upload model artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: trained-model
+        path: |
+          rnn_model.pkl
+          training_log.txt
+        retention-days: 30
+    
+    - name: Release model
+      if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: model-${{ github.run_number }}
+        name: "Trained Model v${{ github.run_number }}"
+        body: |
+          ## 训练信息
+          - 训练轮数: ${{ github.event.inputs.epochs || 100 }}
+          - 批次大小: ${{ github.event.inputs.batch_size || 32 }}
+          - 数据量: ${{ github.event.inputs.max_pairs || 10000 }} 对话对
+          - 训练时间: $(date)
+          
+          ## 使用说明
+          下载 `rnn_model.pkl` 并放入项目根目录，运行 `python main.py` 即可使用
+        files: |
+          rnn_model.pkl
