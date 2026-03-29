@@ -4,32 +4,43 @@ on:
   workflow_dispatch:
     inputs:
       epochs:
-        description: '训练轮数'
+        description: '最大训练轮数'
         required: false
-        default: '100'
-        type: string
+        default: '200'
       max_pairs:
-        description: '对话对数量'
+        description: '使用的对话对数量'
         required: false
         default: '5000'
-        type: string
+      lr:
+        description: '初始学习率'
+        required: false
+        default: '0.005'
+      hidden_size:
+        description: '隐藏层大小'
+        required: false
+        default: '64'
+      patience:
+        description: '早停耐心值'
+        required: false
+        default: '5'
 
 jobs:
   train:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
-    
+
     - name: Install dependencies
       run: |
         pip install numpy
-    
+
     - name: Download dataset
       run: |
         mkdir -p data
@@ -41,16 +52,22 @@ jobs:
         rm -rf dataset.zip cornell_movie_dialogs_corpus* 2>/dev/null || true
         echo "Dataset ready"
         ls -lh data/
-    
+
     - name: Train model
       run: |
-        python train_actions.py --epochs ${{ github.event.inputs.epochs || 100 }} --max_pairs ${{ github.event.inputs.max_pairs || 5000 }}
-    
+        python train_actions.py \
+          --epochs ${{ github.event.inputs.epochs || 200 }} \
+          --max_pairs ${{ github.event.inputs.max_pairs || 5000 }} \
+          --lr ${{ github.event.inputs.lr || 0.005 }} \
+          --hidden_size ${{ github.event.inputs.hidden_size || 64 }} \
+          --patience ${{ github.event.inputs.patience || 5 }}
+
     - name: Upload model
       uses: actions/upload-artifact@v4
       with:
         name: trained-model
         path: |
           rnn_model.pkl
+          best_model.pkl
           model_epoch_*.pkl
         retention-days: 30
