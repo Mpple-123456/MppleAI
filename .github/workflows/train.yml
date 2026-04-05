@@ -1,0 +1,54 @@
+name: Train MppleAI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  train:
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+    
+    - name: Download dataset
+      run: |
+        python -c "
+        import urllib.request
+        import zipfile
+        import os
+        
+        url = 'https://www.cs.cornell.edu/~cristian/data/cornell_movie_dialogs_corpus.zip'
+        zip_file = 'cornell_movie_dialogs_corpus.zip'
+        
+        print('Downloading Cornell Movie Dialogs dataset...')
+        urllib.request.urlretrieve(url, zip_file)
+        print('Download complete!')
+        
+        print('Extracting...')
+        with zipfile.ZipFile(zip_file, 'r') as zip_ref:
+            zip_ref.extractall('.')
+        print('Done!')
+        os.remove(zip_file)
+        "
+    
+    - name: Install dependencies
+      run: |
+        pip install numpy
+    
+    - name: Train model
+      run: |
+        python train.py
+    
+    - name: Upload model
+      uses: actions/upload-artifact@v4
+      with:
+        name: trained-model
+        path: chat_model.pkl
